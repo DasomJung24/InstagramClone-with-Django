@@ -20,10 +20,10 @@ class SignUpView(View):
         
         try:
             if User.objects.filter(email=data['email']).exists(): 
-                return JsonResponse({'message': 'ALREADY EXIST'}, status = 400)
+                return JsonResponse({'message': 'ALREADY EXIST'}, status=400)
             
             if '@' not in data['email'] or '.' not in data['email']:
-                return JsonResponse({'message':'WRONG FORM'}, status = 400)
+                return JsonResponse({'message': 'WRONG FORM'}, status=400)
 
             if len(data['password']) < MINIMUM_PASSWORD_LENGTH:
                 return JsonResponse({'message': 'TOO SHORT'}, status=400)
@@ -33,36 +33,41 @@ class SignUpView(View):
                 bcrypt.gensalt()
             ).decode('utf-8')  
             
-            User.objects.create(email = data['email'], password = hashed_password)
+            User.objects.create(email=data['email'], password=hashed_password)
 
             return JsonResponse({'message': 'SUCCESS'}, status=200)
         
         except KeyError:
             return JsonResponse({'message': 'KEY_ERROR'}, status=400) 
-        
+
+
 class SignInView(View):
     def post(self, request):
         data = json.loads(request.body)
 
         try:
             if not User.objects.filter(email=data['email']).exists(): 
-                return JsonResponse({'message':'INVALID_USER'}, status=401)
+                return JsonResponse({'message': 'INVALID_USER'}, status=401)
 
             new_password = data['password'] 
-            user         = User.objects.get(email = data['email'])  
+            user         = User.objects.get(email=data['email'])
             password     = user.password 
 
             if not bcrypt.checkpw(new_password.encode('utf-8'), password.encode('utf-8')):
-                return JsonResponse({'message':'WRONG_PASSWORD'}, status=401)
+                return JsonResponse({'message': 'WRONG_PASSWORD'}, status=401)
 
             expire = datetime.datetime.utcnow() + datetime.timedelta(seconds=3600) 
           
-            access_token = jwt.encode({'user_id': user.id, 'exp': expire}, SECRET['secret'], algorithm=ALGORITHM).decode('utf-8') 
+            access_token = jwt.encode(
+                {'user_id': user.id, 'exp': expire},
+                SECRET['secret'],
+                algorithm=ALGORITHM).decode('utf-8')
             
             return JsonResponse({'Authorization': access_token}, status=200)
 
         except KeyError:
             return JsonResponse({'message': 'KEY_ERROR'}, status=400)  
+
 
 class FollowView(View):
     @login_decorator
@@ -70,17 +75,17 @@ class FollowView(View):
         try:
             data = json.loads(request.body)
             if not User.objects.filter(id=data['to_user_id']).exists():
-                return JsonResponse({'message':'NOT FOUND'}, status=404)
+                return JsonResponse({'message': 'NOT FOUND'}, status=404)
             
             if data['follow_button'] == '+':
                 Follow.objects.create(from_user=request.user, to_user_id=data['to_user_id'])
             elif data['follow_button'] == '-':
                 Follow.objects.filter(Q(from_user=request.user) & Q(to_user_id=data['to_user_id'])).delete()
             
-            return JsonResponse({'message':'SUCCESS'}, status=200)
+            return JsonResponse({'message': 'SUCCESS'}, status=200)
         
         except KeyError:
-            return JsonResponse({'message':'KEY ERROR'}, status=400)
+            return JsonResponse({'message': 'KEY ERROR'}, status=400)
 
     def get(self, request):
         user_id = request.GET.get('user-id', None)
@@ -93,7 +98,7 @@ class FollowView(View):
                 'following': [user.to_user.id for user in from_users],
                 'follower' : [user.from_user.id for user in to_users]
             }]
-            return JsonResponse({'follow_list':results}, status=200)
+            return JsonResponse({'follow_list': results}, status=200)
         except User.DoesNotExist:
-            return JsonResponse({'message':'NOT FOUND'}, status=404)
+            return JsonResponse({'message': 'NOT FOUND'}, status=404)
 
